@@ -8,7 +8,7 @@ const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const PORT = process.env.PORT || 3000;
 
 if (!TOKEN) {
-    console.error("❌ خطأ: ضع TELEGRAM_BOT_TOKEN في متغيرات البيئة على Railway");
+    console.error("❌ خطأ: ضع TELEGRAM_BOT_TOKEN في متغيرات البيئة");
     process.exit(1);
 }
 
@@ -16,7 +16,7 @@ if (!TOKEN) {
 const bot = new TelegramBot(TOKEN, { polling: true });
 const app = express();
 
-// ==== إعداد السيرفر لتقديم ملف HTML ====
+// ==== إعداد السيرفر ====
 app.use(express.static(__dirname));
 
 // صفحة اللعبة (Web App)
@@ -24,22 +24,38 @@ app.get('/game', (req, res) => {
     res.sendFile(path.join(__dirname, 'game.html'));
 });
 
-// صفحة رئيسية للتأكد إن السيرفر شغال
+// صفحة رئيسية (متزامنة بدون await)
 app.get('/', (req, res) => {
-    res.send(`
-        <h1>🎮 بوت إكس-أو شغال!</h1>
-        <p>استخدم البوت على تليجرام: <code>@${(await bot.getMe()).username}</code></p>
-        <p>رابط اللعبة: <a href="/game">/game</a></p>
-    `);
+    bot.getMe().then(botInfo => {
+        res.send(`
+            <h1>🎮 بوت إكس-أو شغال!</h1>
+            <p>استخدم البوت على تليجرام: <code>@${botInfo.username}</code></p>
+            <p>رابط اللعبة: <a href="/game">/game</a></p>
+        `);
+    }).catch(err => {
+        res.send(`
+            <h1>🎮 البوت شغال</h1>
+            <p>اللعبة جاهزة: <a href="/game">اضغط هنا</a></p>
+        `);
+    });
 });
 
 // ==== أوامر البوت ====
-const webAppUrl = `https://${process.env.RAILWAY_STATIC_URL || 'localhost:' + PORT}/game`;
+let webAppUrl = '';
+
+// تحديد رابط اللعبة بعد ما السيرفر يشتغل
+function getWebAppUrl() {
+    if (process.env.RAILWAY_STATIC_URL) {
+        return `https://${process.env.RAILWAY_STATIC_URL}/game`;
+    }
+    return `http://localhost:${PORT}/game`;
+}
 
 // أمر /start
 bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
     const firstName = msg.from.first_name || 'صديقي';
+    const gameUrl = getWebAppUrl();
 
     await bot.sendMessage(chatId, 
         `🎮 *أهلاً بك يا ${firstName}!* 🎮\n\n` +
@@ -53,7 +69,7 @@ bot.onText(/\/start/, async (msg) => {
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "🎮 ابدأ اللعب الآن", web_app: { url: webAppUrl } }],
+                    [{ text: "🎮 ابدأ اللعب الآن", web_app: { url: gameUrl } }],
                     [{ text: "📖 شرح اللعبة", callback_data: "help" }]
                 ]
             }
@@ -64,10 +80,12 @@ bot.onText(/\/start/, async (msg) => {
 // أمر /game
 bot.onText(/\/game/, async (msg) => {
     const chatId = msg.chat.id;
+    const gameUrl = getWebAppUrl();
+    
     await bot.sendMessage(chatId, "🎮 اضغط للعب إكس-أو", {
         reply_markup: {
             inline_keyboard: [
-                [{ text: "🎮 فتح اللعبة", web_app: { url: webAppUrl } }]
+                [{ text: "🎮 فتح اللعبة", web_app: { url: gameUrl } }]
             ]
         }
     });
@@ -91,7 +109,7 @@ bot.onText(/\/help/, async (msg) => {
     );
 });
 
-// التعامل مع الأزرار (Callback Queries)
+// التعامل مع الأزرار
 bot.on('callback_query', async (callbackQuery) => {
     const message = callbackQuery.message;
     const data = callbackQuery.data;
@@ -108,7 +126,6 @@ bot.on('callback_query', async (callbackQuery) => {
         );
     }
 
-    // الرد على الكال بك عشان يختفي التحميل
     await bot.answerCallbackQuery(callbackQuery.id);
 });
 
@@ -120,8 +137,7 @@ bot.onText(/\/info/, async (msg) => {
         `🤖 *معلومات البوت*\n\n` +
         `• الاسم: ${botInfo.first_name}\n` +
         `• اليوزر: @${botInfo.username}\n` +
-        `• الإصدار: 1.0.0\n` +
-        `• المطور: @${msg.from.username || 'المطور'}\n\n` +
+        `• الإصدار: 1.0.0\n\n` +
         `🚀 مطور بـ Node.js + Express\n` +
         `🎨 لعبة إكس-أو بواجهة حديثة`,
         { parse_mode: 'Markdown' }
@@ -134,11 +150,13 @@ app.listen(PORT, () => {
     console.log(`🤖 البوت شغال...`);
     bot.getMe().then(botInfo => {
         console.log(`✅ تم تشغيل البوت: @${botInfo.username}`);
-        console.log(`🔗 رابط ويب آب: ${webAppUrl}`);
+        console.log(`🔗 رابط ويب آب: ${getWebAppUrl()}`);
+    }).catch(err => {
+        console.error("❌ خطأ في الاتصال بالبوت:", err.message);
     });
 });
 
 // معالجة الأخطاء
 process.on('uncaughtException', (error) => {
-    console.error('⚠️ خطأ غير متوقع:', error);
+    console.error('⚠️ خطأ غير متوقع:', error.message);
 });
