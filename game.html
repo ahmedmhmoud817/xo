@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>لعبة إكس - أو | X-O Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Tahoma', 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2a5298;
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .status {
+            background: #f7f7f7;
+            padding: 15px;
+            border-radius: 50px;
+            margin: 15px 0;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px;
+            border-radius: 20px;
+            margin: 20px 0;
+        }
+
+        .cell {
+            aspect-ratio: 1 / 1;
+            background: white;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .cell:hover {
+            transform: scale(1.02);
+            background: #f0f0f0;
+        }
+
+        .cell.X {
+            color: #e74c3c;
+            text-shadow: 2px 2px 4px rgba(231,76,60,0.3);
+        }
+
+        .cell.O {
+            color: #3498db;
+            text-shadow: 2px 2px 4px rgba(52,152,219,0.3);
+        }
+
+        .cell.winner {
+            background: #2ecc71;
+            color: white;
+            animation: pulse 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 20px;
+        }
+
+        .score {
+            text-align: center;
+        }
+
+        .score h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .score .value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .score.X .value { color: #e74c3c; }
+        .score.O .value { color: #3498db; }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .mode-btn {
+            background: #e0e0e0;
+            color: #333;
+            padding: 8px 20px;
+            font-size: 0.9em;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        @media (max-width: 480px) {
+            .cell {
+                font-size: 2.5em;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>
+            🎮 إكس - أو
+            <span>⚡</span>
+        </h1>
+
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="2p">👥 لاعب ضد لاعب</button>
+            <button class="mode-btn" data-mode="ai">🤖 لاعب ضد الكمبيوتر</button>
+        </div>
+
+        <div class="status" id="status">
+            دور اللاعب X
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="score-board">
+            <div class="score X">
+                <h3>❌ اللاعب X</h3>
+                <div class="value" id="scoreX">0</div>
+            </div>
+            <div class="score O">
+                <h3>⭕ اللاعب O</h3>
+                <div class="value" id="scoreO">0</div>
+            </div>
+        </div>
+
+        <div>
+            <button id="resetBtn">🔄 بداية جديدة</button>
+            <button id="resetScoreBtn">📊 تصفير النقاط</button>
+        </div>
+    </div>
+
+    <script>
+        let board = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let scores = { X: 0, O: 0 };
+        let gameMode = '2p';
+        
+        const winPatterns = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+        
+        const boardElement = document.getElementById('board');
+        const statusElement = document.getElementById('status');
+        const scoreXElement = document.getElementById('scoreX');
+        const scoreOElement = document.getElementById('scoreO');
+        
+        function createBoard() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => handleCellClick(i));
+                boardElement.appendChild(cell);
+            }
+            updateBoardUI();
+        }
+        
+        function updateBoardUI() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                const value = board[index];
+                cell.textContent = value;
+                if (value === 'X') {
+                    cell.classList.add('X');
+                    cell.classList.remove('O');
+                } else if (value === 'O') {
+                    cell.classList.add('O');
+                    cell.classList.remove('X');
+                } else {
+                    cell.classList.remove('X', 'O');
+                }
+            });
+        }
+        
+        function checkWinner() {
+            for (let pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    return board[a];
+                }
+            }
+            return null;
+        }
+        
+        function isBoardFull() {
+            return board.every(cell => cell !== '');
+        }
+        
+        function updateScoresUI() {
+            scoreXElement.textContent = scores.X;
+            scoreOElement.textContent = scores.O;
+        }
+        
+        function highlightWinners(winner) {
+            for (let pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (board[a] === winner && board[b] === winner && board[c] === winner) {
+                    const cells = document.querySelectorAll('.cell');
+                    cells[a].classList.add('winner');
+                    cells[b].classList.add('winner');
+                    cells[c].classList.add('winner');
+                    break;
+                }
+            }
+        }
+        
+        function endGame(winner) {
+            gameActive = false;
+            if (winner) {
+                scores[winner]++;
+                updateScoresUI();
+                statusElement.textContent = `🎉 اللاعب ${winner} فاز! 🎉`;
+                highlightWinners(winner);
+            } else {
+                statusElement.textContent = '🤝 تعادل! 🤝';
+            }
+        }
+        
+        function resetGame() {
+            board = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = 'X';
+            gameActive = true;
+            document.querySelectorAll('.cell').forEach(cell => cell.classList.remove('winner'));
+            updateBoardUI();
+            statusElement.textContent = `دور اللاعب X`;
+        }
+        
+        function resetScores() {
+            scores = { X: 0, O: 0 };
+            updateScoresUI();
+            resetGame();
+        }
+        
+        function makeMove(index, player) {
+            if (!gameActive) return false;
+            if (board[index] !== '') return false;
+            if (player !== currentPlayer) return false;
+            
+            board[index] = player;
+            updateBoardUI();
+            
+            const winner = checkWinner();
+            if (winner) {
+                endGame(winner);
+                return true;
+            }
+            if (isBoardFull()) {
+                endGame(null);
+                return true;
+            }
+            
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            statusElement.textContent = `دور اللاعب ${currentPlayer}`;
+            return true;
+        }
+        
+        function getWinningMove(player) {
+            for (let pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                const values = [board[a], board[b], board[c]];
+                const countPlayer = values.filter(v => v === player).length;
+                const countEmpty = values.filter(v => v === '').length;
+                if (countPlayer === 2 && countEmpty === 1) {
+                    if (board[a] === '') return a;
+                    if (board[b] === '') return b;
+                    if (board[c] === '') return c;
+                }
+            }
+            return null;
+        }
+        
+        function aiMove() {
+            if (!gameActive) return;
+            if (currentPlayer !== 'O') return;
+            
+            setTimeout(() => {
+                if (!gameActive || currentPlayer !== 'O') return;
+                let moveIndex = null;
+                
+                moveIndex = getWinningMove('O');
+                if (moveIndex === null) moveIndex = getWinningMove('X');
+                if (moveIndex === null && board[4] === '') moveIndex = 4;
+                if (moveIndex === null) {
+                    const corners = [0, 2, 6, 8];
+                    const availableCorners = corners.filter(i => board[i] === '');
+                    if (availableCorners.length > 0) {
+                        moveIndex = availableCorners[Math.floor(Math.random() * availableCorners.length)];
+                    }
+                }
+                if (moveIndex === null) {
+                    const available = board.reduce((arr, cell, idx) => {
+                        if (cell === '') arr.push(idx);
+                        return arr;
+                    }, []);
+                    if (available.length > 0) {
+                        moveIndex = available[Math.floor(Math.random() * available.length)];
+                    }
+                }
+                if (moveIndex !== null) makeMove(moveIndex, 'O');
+            }, 200);
+        }
+        
+        function handleCellClick(index) {
+            if (!gameActive) return;
+            if (gameMode === 'ai' && currentPlayer === 'O') return;
+            if (makeMove(index, currentPlayer) && gameMode === 'ai' && gameActive && currentPlayer === 'O') {
+                aiMove();
+            }
+        }
+        
+        function setMode(mode) {
+            gameMode = mode;
+            resetGame();
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                if (btn.dataset.mode === mode) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+        }
+        
+        document.getElementById('resetBtn').addEventListener('click', resetGame);
+        document.getElementById('resetScoreBtn').addEventListener('click', resetScores);
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => setMode(btn.dataset.mode));
+        });
+        
+        createBoard();
+        updateScoresUI();
+    </script>
+</body>
+</html>
